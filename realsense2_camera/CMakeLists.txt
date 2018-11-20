@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(realsense2_camera)
 
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 find_package(catkin REQUIRED COMPONENTS
     message_generation
     roscpp

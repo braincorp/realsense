@@ -5,7 +5,6 @@ using namespace realsense2_camera;
 
 /* Modified for Brain */
 #include <stdio.h>
-#include <algorithm>
 
 static float unit_vectors[FRAME_MAX_HEIGHT * FRAME_MAX_WIDTH * 3]= {0};
 static bool enable_unit_test = true;
