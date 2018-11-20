@@ -1108,32 +1108,12 @@ void BaseRealSenseNode::publishUnitVectorsTopic(const ros::Time& t, const std::m
 	static unsigned int height, width, sequence;
 	static float current_unit_vectors[FRAME_PRIME_HEIGHT][FRAME_PRIME_WIDTH * 3]= {0};
 
-	try
-	{
-		if (!is_frame_arrived.at(DEPTH))
-		{
-			ROS_DEBUG("Brain: Skipping publish unit vector topic! Depth frame didn't arrive.");
-			return;
-		}
-	}
-	catch (std::out_of_range)
-	{
-		ROS_DEBUG("Brain: Skipping publish unit vector topic! Depth frame didn't configure.");
-		return;
-	}
-
 	auto depth_intrinsics = _stream_intrinsics[DEPTH];
 
 	height = depth_intrinsics.height;
 	width = depth_intrinsics.width;
 
-	if ((detailed_logging) && (max_log-- > 0))
-		ROS_INFO("Brain: depth_intrinsics: width:%d; height:%d; _depth_scale_meters:%.6f.\n",
-					width, height, _depth_scale_meters);
-
 	if (!unit_vector_mature) {
-		float num_bad_pixel = 0;
-
 		for (int y = 0; y < depth_intrinsics.height; ++y)
 		{
 			for (int x = 0; x < depth_intrinsics.width; ++x)
@@ -1147,19 +1127,10 @@ void BaseRealSenseNode::publishUnitVectorsTopic(const ros::Time& t, const std::m
 			}
 		}
 
-		/* check the % of pixels with valid depth value in this frame */
-		if ((detailed_logging) && (max_log > 0))
-			ROS_INFO("Brain: %% of pixels in this frame with valid depth values is:%f %%.\n",
-						1 - num_bad_pixel / (depth_intrinsics.height * depth_intrinsics.width));
-
 		/* check the % of valid vectors in unit vectors array */
 		float rate = num_valid / (depth_intrinsics.height * depth_intrinsics.width);
 		if (rate >= mature_threshold) {
 			unit_vector_mature = true;
-			ROS_INFO("Brain: %% of pixels with valid depth values is:%f %% which is above the threshold %f %% .\n",
-						rate, mature_threshold);
-
-			ROS_INFO("Brain: prepare the data to be formatted to image message.\n");
 
 			for (unsigned int i = 0; i < height; i++)
 				for (unsigned int j = 0; j < width * 3; j++)
@@ -1167,11 +1138,7 @@ void BaseRealSenseNode::publishUnitVectorsTopic(const ros::Time& t, const std::m
 
 			if (enable_unit_test)
 				output_unit_vector(height, width, unit_vectors);
-		} else {
-			if ((detailed_logging) && (max_log > 0))
-				ROS_INFO("Brain: %% of pixels with valid depth values is:%f %% which is below the threshold %f %% .\n",
-							rate, mature_threshold);
-		}
+		} 
 	}
 
 	if (unit_vector_mature || !publish_high_quality) {
