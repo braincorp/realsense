@@ -1122,7 +1122,6 @@ void BaseRealSenseNode::publishUnitVectorsTopic(const ros::Time& t, const std::m
 		return;
 	}
 
-	auto image_depth16 = reinterpret_cast<const uint16_t*>(_image[DEPTH].data);
 	auto depth_intrinsics = _stream_intrinsics[DEPTH];
 
 	height = depth_intrinsics.height;
@@ -1133,27 +1132,14 @@ void BaseRealSenseNode::publishUnitVectorsTopic(const ros::Time& t, const std::m
 					width, height, _depth_scale_meters);
 
 	if (!unit_vector_mature) {
-		float scaled_depth, num_bad_pixel = 0;
+		float num_bad_pixel = 0;
 
 		for (int y = 0; y < depth_intrinsics.height; ++y)
 		{
 			for (int x = 0; x < depth_intrinsics.width; ++x)
 			{
-				scaled_depth = static_cast<float>(*image_depth16) * _depth_scale_meters;
-
-				++image_depth16;
-
-				if (fabs(scaled_depth) < 0.0001) {
-					num_bad_pixel++;
-					continue;
-				}
-
-				if (valid_pixels[y][x]) {
-					continue;
-				}
-
-				unit_vectors[y][x * 3] = (x - depth_intrinsics.ppx) / (depth_intrinsics.fx * scaled_depth);
-				unit_vectors[y][x * 3 + 1] = (y - depth_intrinsics.ppy) / (depth_intrinsics.fy * scaled_depth);
+				unit_vectors[y][x * 3] = (x - depth_intrinsics.ppx) / (depth_intrinsics.fx);
+				unit_vectors[y][x * 3 + 1] = (y - depth_intrinsics.ppy) / (depth_intrinsics.fy);
 				unit_vectors[y][x * 3 + 2] = 1;
 
 				valid_pixels[y][x] = true;
