@@ -1106,6 +1106,20 @@ void BaseRealSenseNode::publishUnitVectorsTopic(const ros::Time& t, const std::m
 	unsigned int height = depth_intrinsics.height;
     unsigned int  width = depth_intrinsics.width;
 
+    try
+    {
+        if (!is_frame_arrived.at(DEPTH))
+        {
+            ROS_DEBUG("Brain: Skipping publish unit vector topic! Depth frame didn't arrive.");
+            return;
+        }
+    }
+    catch (std::out_of_range)
+    {
+        ROS_DEBUG("Brain: Skipping publish unit vector topic! Depth frame didn't configure.");
+        return;
+    }
+
 #pragma omp parallel for
     for (unsigned int y = 0; y < height; ++y) {
         for (unsigned int x = 0; x < width; ++x) {
