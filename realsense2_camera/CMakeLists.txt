@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(realsense2_camera)
 
-option(BUILD_WITH_OPENMP "Use OpenMP" OFF)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(catkin REQUIRED COMPONENTS
     message_generation
@@ -16,15 +18,9 @@ find_package(catkin REQUIRED COMPONENTS
     diagnostic_updater
     )
 
-if(BUILD_WITH_OPENMP)
-    find_package(OpenMP)
-    if(NOT OpenMP_FOUND)
-        message(FATAL_ERROR "\n\n OpenMP is missing!\n\n")
-    else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -fopenmp")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-    endif()
-endif()
+find_package(OpenMP)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 
 find_package(realsense2)
 if(NOT realsense2_FOUND)

@@ -6,10 +6,7 @@ using namespace realsense2_camera;
 /* Modified for Brain */
 #include <stdio.h>
 
-static float unit_vectors[FRAME_MAX_HEIGHT][FRAME_MAX_WIDTH * 3]= {0};
-static bool valid_pixels[FRAME_MAX_HEIGHT][FRAME_MAX_WIDTH]= {0};
-static float mature_threshold = DEFAULT_THLD;
-static bool publish_high_quality = true; /* publish unit vectors when the ratio is above the threshold */
+static float unit_vectors[FRAME_MAX_HEIGHT * FRAME_MAX_WIDTH * 3]= {0};
 static bool enable_unit_test = true;
 static bool detailed_logging = true;
 static int max_log = MAX_LOG_MESSAGES;
@@ -1103,120 +1100,48 @@ static void output_unit_vector(unsigned int height, unsigned int width, float un
 
 void BaseRealSenseNode::publishUnitVectorsTopic(const ros::Time& t, const std::map<stream_index_pair, bool>& is_frame_arrived)
 {
-	static float num_valid;
-	static bool unit_vector_mature;
-	static unsigned int height, width, sequence;
-	static float current_unit_vectors[FRAME_PRIME_HEIGHT][FRAME_PRIME_WIDTH * 3]= {0};
+    static unsigned int sequence = 0;
 
-	try
-	{
-		if (!is_frame_arrived.at(DEPTH))
-		{
-			ROS_DEBUG("Brain: Skipping publish unit vector topic! Depth frame didn't arrive.");
-			return;
-		}
-	}
-	catch (std::out_of_range)
-	{
-		ROS_DEBUG("Brain: Skipping publish unit vector topic! Depth frame didn't configure.");
-		return;
-	}
-
-	auto image_depth16 = reinterpret_cast<const uint16_t*>(_image[DEPTH].data);
 	auto depth_intrinsics = _stream_intrinsics[DEPTH];
+	unsigned int height = depth_intrinsics.height;
+    unsigned int  width = depth_intrinsics.width;
 
-	height = depth_intrinsics.height;
-	width = depth_intrinsics.width;
+    try
+    {
+        if (!is_frame_arrived.at(DEPTH))
+        {
+            ROS_DEBUG("Brain: Skipping publish unit vector topic! Depth frame didn't arrive.");
+            return;
+        }
+    }
+    catch (std::out_of_range)
+    {
+        ROS_DEBUG("Brain: Skipping publish unit vector topic! Depth frame didn't configure.");
+        return;
+    }
 
-	if ((detailed_logging) && (max_log-- > 0))
-		ROS_INFO("Brain: depth_intrinsics: width:%d; height:%d; _depth_scale_meters:%.6f.\n",
-					width, height, _depth_scale_meters);
+#pragma omp parallel for
+    for (unsigned int y = 0; y < height; ++y) {
+        for (unsigned int x = 0; x < width; ++x) {
+            unit_vectors[y * width * 3 + x * 3] = (static_cast<float>(x) - depth_intrinsics.ppx) / depth_intrinsics.fx;
+            unit_vectors[y * width * 3 + x * 3 + 1] = (static_cast<float>(y) - depth_intrinsics.ppy) / depth_intrinsics.fy;
+            unit_vectors[y * width * 3 + x * 3 + 2] = 1.f;
+        }
+    }
 
-	if (!unit_vector_mature) {
-		float scaled_depth, num_bad_pixel = 0;
+    cv::Mat image(height, width, CV_32FC3, unit_vectors, width * STEP);
 
-		for (int y = 0; y < depth_intrinsics.height; ++y)
-		{
-			for (int x = 0; x < depth_intrinsics.width; ++x)
-			{
-				scaled_depth = static_cast<float>(*image_depth16) * _depth_scale_meters;
+    sensor_msgs::ImagePtr msg_unit_vectors;
+    msg_unit_vectors = cv_bridge::CvImage(std_msgs::Header(), sensor_msgs::image_encodings::TYPE_32FC3, image).toImageMsg();
+    msg_unit_vectors->width = width;
+    msg_unit_vectors->height = height;
+    msg_unit_vectors->is_bigendian = false;
+    msg_unit_vectors->step = width * STEP;
+    msg_unit_vectors->header.frame_id = _optical_frame_id[DEPTH];
+    msg_unit_vectors->header.stamp = t;
+    msg_unit_vectors->header.seq = sequence++;
 
-				++image_depth16;
-
-				if (fabs(scaled_depth) < 0.0001) {
-					num_bad_pixel++;
-					continue;
-				}
-
-				if (valid_pixels[y][x]) {
-					continue;
-				}
-
-				unit_vectors[y][x * 3] = (x - depth_intrinsics.ppx) / (depth_intrinsics.fx * scaled_depth);
-				unit_vectors[y][x * 3 + 1] = (y - depth_intrinsics.ppy) / (depth_intrinsics.fy * scaled_depth);
-				unit_vectors[y][x * 3 + 2] = 1;
-
-				valid_pixels[y][x] = true;
-				num_valid++;
-			}
-		}
-
-		/* check the % of pixels with valid depth value in this frame */
-		if ((detailed_logging) && (max_log > 0))
-			ROS_INFO("Brain: %% of pixels in this frame with valid depth values is:%f %%.\n",
-						1 - num_bad_pixel / (depth_intrinsics.height * depth_intrinsics.width));
-
-		/* check the % of valid vectors in unit vectors array */
-		float rate = num_valid / (depth_intrinsics.height * depth_intrinsics.width);
-		if (rate >= mature_threshold) {
-			unit_vector_mature = true;
-			ROS_INFO("Brain: %% of pixels with valid depth values is:%f %% which is above the threshold %f %% .\n",
-						rate, mature_threshold);
-
-			ROS_INFO("Brain: prepare the data to be formatted to image message.\n");
-
-			for (unsigned int i = 0; i < height; i++)
-				for (unsigned int j = 0; j < width * 3; j++)
-					current_unit_vectors[i][j] = unit_vectors[i][j];
-
-			if (enable_unit_test)
-				output_unit_vector(height, width, unit_vectors);
-		} else {
-			if ((detailed_logging) && (max_log > 0))
-				ROS_INFO("Brain: %% of pixels with valid depth values is:%f %% which is below the threshold %f %% .\n",
-							rate, mature_threshold);
-		}
-	}
-
-	if (unit_vector_mature || !publish_high_quality) {
-		float any_size_unit_vectors[height][width * 3]= {0};
-		void *data;
-
-		if ((height == FRAME_PRIME_HEIGHT) && (width == FRAME_PRIME_WIDTH)) {
-			data = current_unit_vectors;
-		} else {
-			for (unsigned int i = 0; i < height; i++)
-				for (unsigned int j = 0; j < width * 3; j++)
-					any_size_unit_vectors[i][j] = unit_vectors[i][j];
-
-			data = any_size_unit_vectors;
-		}
-
-		cv::Mat image(height, width, CV_32FC3, data, width * STEP);
-
-		sensor_msgs::ImagePtr msg_unit_vectors;
-
-		msg_unit_vectors = cv_bridge::CvImage(std_msgs::Header(), sensor_msgs::image_encodings::TYPE_32FC3, image).toImageMsg();
-		msg_unit_vectors->width = width;
-		msg_unit_vectors->height = height;
-		msg_unit_vectors->is_bigendian = false;
-		msg_unit_vectors->step = width * STEP;
-		msg_unit_vectors->header.frame_id = _optical_frame_id[DEPTH];
-		msg_unit_vectors->header.stamp = t;
-		msg_unit_vectors->header.seq = sequence++;
-
-		_unit_vectors_publisher.publish(msg_unit_vectors);
-	}
+    _unit_vectors_publisher.publish(msg_unit_vectors);
 }
 
 void BaseRealSenseNode::publishRgbToDepthPCTopic(const ros::Time& t, const std::map<stream_index_pair, bool>& is_frame_arrived)
