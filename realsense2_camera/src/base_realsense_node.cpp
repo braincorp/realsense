@@ -5,6 +5,8 @@ using namespace realsense2_camera;
 
 /* Modified for Brain */
 #include <stdio.h>
+#include <iostream>
+#include <sstream>
 
 static float unit_vectors[FRAME_MAX_HEIGHT * FRAME_MAX_WIDTH * 3]= {0};
 static bool enable_unit_test = true;
@@ -1119,6 +1121,13 @@ void BaseRealSenseNode::publishUnitVectorsTopic(const ros::Time& t, const std::m
         ROS_DEBUG("Brain: Skipping publish unit vector topic! Depth frame didn't configure.");
         return;
     }
+
+    //std::stringstream ss;
+    //ss << "depth intrinsics ppx: <" << depth_intrinsics.ppx
+        //<< ", " << depth_intrinsics.ppy << ">" << std::endl;
+    //ss << "depth intrinsics fx: <" << depth_intrinsics.fx
+        //<< ", " << depth_intrinsics.fy << ">" << std::endl;
+    //ROS_INFO("%s\n", ss.str().c_str());
 
 #pragma omp parallel for
     for (unsigned int y = 0; y < height; ++y) {
