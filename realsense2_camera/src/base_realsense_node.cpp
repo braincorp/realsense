@@ -9,7 +9,6 @@ using namespace realsense2_camera;
 #include <sstream>
 
 static float unit_vectors[FRAME_MAX_HEIGHT * FRAME_MAX_WIDTH * 3]= {0};
-static bool enable_unit_test = true;
 static bool detailed_logging = true;
 static int max_log = MAX_LOG_MESSAGES;
 
@@ -1100,6 +1099,16 @@ static void output_unit_vector(unsigned int height, unsigned int width, float un
 	ROS_INFO("\n*** End of unit vectors ***\n");
 }
 
+
+
+std::tuple<float, float, float> BaseRealSenseNode::calculateDepthVector(float x, float y, const rs2_intrinsics & depth_intrinsics) {
+    // This is implemented as a separate fn so it can be unit tested.
+    return std::make_tuple(
+            (x - depth_intrinsics.ppx) / depth_intrinsics.fx,
+            (y - depth_intrinsics.ppy) / depth_intrinsics.fy,
+            1.f);
+}
+
 void BaseRealSenseNode::publishUnitVectorsTopic(const ros::Time& t, const std::map<stream_index_pair, bool>& is_frame_arrived)
 {
     static unsigned int sequence = 0;
@@ -1122,19 +1131,13 @@ void BaseRealSenseNode::publishUnitVectorsTopic(const ros::Time& t, const std::m
         return;
     }
 
-    //std::stringstream ss;
-    //ss << "depth intrinsics ppx: <" << depth_intrinsics.ppx
-        //<< ", " << depth_intrinsics.ppy << ">" << std::endl;
-    //ss << "depth intrinsics fx: <" << depth_intrinsics.fx
-        //<< ", " << depth_intrinsics.fy << ">" << std::endl;
-    //ROS_INFO("%s\n", ss.str().c_str());
-
 #pragma omp parallel for
     for (unsigned int y = 0; y < height; ++y) {
         for (unsigned int x = 0; x < width; ++x) {
-            unit_vectors[y * width * 3 + x * 3] = (static_cast<float>(x) - depth_intrinsics.ppx) / depth_intrinsics.fx;
-            unit_vectors[y * width * 3 + x * 3 + 1] = (static_cast<float>(y) - depth_intrinsics.ppy) / depth_intrinsics.fy;
-            unit_vectors[y * width * 3 + x * 3 + 2] = 1.f;
+            auto vector = calculateDepthVector(static_cast<float>(x), static_cast<float>(y), depth_intrinsics);
+            unit_vectors[y * width * 3 + x * 3] = std::get<0>(vector);
+            unit_vectors[y * width * 3 + x * 3 + 1] = std::get<1>(vector);
+            unit_vectors[y * width * 3 + x * 3 + 2] =  std::get<2>(vector);
         }
     }
 

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tuple>
 #include "../include/realsense_node_factory.h"
 #include <dynamic_reconfigure/server.h>
 #include <realsense2_camera/base_d400_paramsConfig.h>
@@ -64,6 +65,8 @@ namespace realsense2_camera
         virtual ~BaseRealSenseNode() {}
 
     protected:
+
+        static std::tuple<float, float, float> calculateDepthVector(float x, float y, const rs2_intrinsics & depth_intrinsics);
 
         const uint32_t set_default_dynamic_reconfig_values = 0xffffffff;
         rs2::device _dev;
