@@ -24,11 +24,6 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}
 
 # Setup pybind11 and catch2
 add_subdirectory(${CMAKE_SOURCE_DIR}/../../dep/pybind11 pybind11)
-add_subdirectory(${CMAKE_SOURCE_DIR}/../../dep/catch2 catch2)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/../../dep/catch2/CMake)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/../../dep/catch2/contrib)
-include(CTest)
-include(Catch)
 
 # Setup python includes and libs (needed for pybind)
 find_package(PythonLibs 2.7 REQUIRED)
@@ -96,10 +91,9 @@ add_library(${PROJECT_NAME}
     src/sr300_node.cpp
     )
 set(REALSENSE_TEST_TARGET ${PROJECT_NAME}_tests)
-add_library(${REALSENSE_TEST_TARGET} src/test_base_realsense_node.cpp src/catch_python_module.cpp)
-target_link_libraries(${REALSENSE_TEST_TARGET} PRIVATE ${PROJECT_NAME} Catch2::Catch2 ${PYTHON_LIBRARIES})
-target_include_directories(${REALSENSE_TEST_TARGET} PRIVATE ${PYBIND11_INCLUDE_DIR} ${PYTHON_INCLUDE_DIRS})
-catch_discover_tests(${REALSENSE_TEST_TARGET})
+add_library(${REALSENSE_TEST_TARGET} src/python_module.cpp)
+target_link_libraries(${REALSENSE_TEST_TARGET} PRIVATE ${PROJECT_NAME} ${PYTHON_LIBRARIES})
+target_include_directories(${REALSENSE_TEST_TARGET} PRIVATE ${PYBIND11_INCLUDE_DIR} ${PYTHON_INCLUDE_DIRS} ./include)
 
 add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_generate_messages_cpp)
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})

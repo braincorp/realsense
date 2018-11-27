@@ -1101,11 +1101,11 @@ static void output_unit_vector(unsigned int height, unsigned int width, float un
 
 
 
-std::tuple<float, float, float> BaseRealSenseNode::calculateDepthVector(float x, float y, const rs2_intrinsics & depth_intrinsics) {
+std::tuple<float, float, float> BaseRealSenseNode::calculateDepthVector(float x, float y, const std::pair<float, float> focal_length, const std::pair<float, float> principal_plane) {
     // This is implemented as a separate fn so it can be unit tested.
     return std::make_tuple(
-            (x - depth_intrinsics.ppx) / depth_intrinsics.fx,
-            (y - depth_intrinsics.ppy) / depth_intrinsics.fy,
+            (x - principal_plane.first) / focal_length.first,
+            (y - principal_plane.second) / focal_length.second,
             1.f);
 }
 
@@ -1114,6 +1114,8 @@ void BaseRealSenseNode::publishUnitVectorsTopic(const ros::Time& t, const std::m
     static unsigned int sequence = 0;
 
 	auto depth_intrinsics = _stream_intrinsics[DEPTH];
+    auto principal_plane = std::make_pair(depth_intrinsics.ppx, depth_intrinsics.ppy);
+    auto focal_length = std::make_pair(depth_intrinsics.fx, depth_intrinsics.fy);
 	unsigned int height = depth_intrinsics.height;
     unsigned int  width = depth_intrinsics.width;
 
@@ -1134,7 +1136,7 @@ void BaseRealSenseNode::publishUnitVectorsTopic(const ros::Time& t, const std::m
 #pragma omp parallel for
     for (unsigned int y = 0; y < height; ++y) {
         for (unsigned int x = 0; x < width; ++x) {
-            auto vector = calculateDepthVector(static_cast<float>(x), static_cast<float>(y), depth_intrinsics);
+            auto vector = calculateDepthVector(static_cast<float>(x), static_cast<float>(y), focal_length, principal_plane);
             unit_vectors[y * width * 3 + x * 3] = std::get<0>(vector);
             unit_vectors[y * width * 3 + x * 3 + 1] = std::get<1>(vector);
             unit_vectors[y * width * 3 + x * 3 + 2] =  std::get<2>(vector);

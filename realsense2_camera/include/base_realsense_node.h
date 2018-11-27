@@ -66,7 +66,7 @@ namespace realsense2_camera
 
     protected:
 
-        static std::tuple<float, float, float> calculateDepthVector(float x, float y, const rs2_intrinsics & depth_intrinsics);
+        static std::tuple<float, float, float> calculateDepthVector(float x, float y, const std::pair<float, float> focal_length, const std::pair<float, float> principal_plane);
 
         const uint32_t set_default_dynamic_reconfig_values = 0xffffffff;
         rs2::device _dev;
