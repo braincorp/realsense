@@ -1198,7 +1198,7 @@ void BaseRealSenseNode::publishRgbToDepthPCTopic(const ros::Time& t, const std::
     {
         for (int x = 0; x < depth_intrinsics.width; ++x)
         {
-            if ((x + y) % decimation_factor == 0)
+            if ((x + y) % (decimation_factor * decimation_factor) == 0)
             {
                 scaled_depth = static_cast<float>(*image_depth16) * _depth_scale_meters;
                 float depth_pixel[2] = {static_cast<float>(x), static_cast<float>(y)};
