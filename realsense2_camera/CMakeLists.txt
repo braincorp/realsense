@@ -91,7 +91,7 @@ add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
 
 
 target_link_libraries(${PROJECT_NAME}
-    realsense2
+    realsense2::realsense2
     ${catkin_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT}
     )
